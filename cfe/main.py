@@ -1,5 +1,6 @@
 """CFE CLI - Build your Python apps faster with battle-tested components."""
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -167,6 +168,56 @@ def init(
         console.print("[yellow]   Send me a message on X: @justinmitchel[/yellow]")
 
     console.print()
+
+
+stack_app = typer.Typer(
+    name="stack",
+    help="Inspect cfe.stack modules (needs the stack extra: pip install \"cfe[stack]\").",
+    no_args_is_help=True,
+)
+app.add_typer(stack_app, name="stack")
+
+
+@stack_app.command("modules")
+def stack_modules():
+    """List available cfe.stack modules (no Django project needed)."""
+    # Import lazily: `import cfe.main` must not import Django.
+    try:
+        import django  # noqa: F401
+
+        from .stack import registry
+    except ImportError:
+        console.print("[bold red]✗[/bold red] cfe.stack needs Django.")
+        console.print('  Install it with: pip install "cfe[stack]"', markup=False)
+        raise typer.Exit(code=1)
+
+    from rich.table import Table
+
+    from .stack.exceptions import StackConfigError
+    from .stack.loader import MODULES_ENV, parse_module_list
+
+    paths = registry.env_module_paths(os.environ)
+    try:
+        modules = registry.available(paths)
+        sources = registry.sources(paths)
+    except StackConfigError as e:
+        console.print(f"[bold red]✗[/bold red] {e}")
+        raise typer.Exit(code=1)
+    enabled = parse_module_list(os.environ.get(MODULES_ENV))
+
+    table = Table(title="cfe.stack modules")
+    for column in ("Name", "Label", "Slots", "Source", "In CFE_MODULES", "Description"):
+        table.add_column(column)
+    for name, cls in modules.items():
+        table.add_row(
+            name,
+            cls.label or "-",
+            ", ".join(cls.provides) or "-",
+            sources.get(name, "?"),
+            "yes" if name in enabled else "no",
+            cls.description,
+        )
+    console.print(table)
 
 
 def main():
