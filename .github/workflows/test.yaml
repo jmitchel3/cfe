@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        timeout-minutes: 5
+        run: uv sync --extra all
+      - name: Lint
+        timeout-minutes: 2
+        run: |
+          uv run ruff check cfe/stack tests
+          uv run ruff format --check cfe/stack tests
+      - name: CLI imports without Django
+        timeout-minutes: 2
+        run: uv run --no-sync python -c "import sys, cfe.main; assert 'django' not in sys.modules"
+      - name: Tests
+        timeout-minutes: 5
+        run: uv run pytest -q

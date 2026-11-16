@@ -4,14 +4,46 @@ version = "0.0.23"
 description = "Build your Python apps faster with battle-tested components, templates, and more."
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
 dependencies = [
     "typer>=0.12.0",
     "rich>=13.7.0",
 ]
 
+[project.optional-dependencies]
+# Django and the cfe.stack module loader.
+stack = ["django>=5.2", "dj-database-url>=2.3"]
+# Vendor extras: each pulls in the stack plus that service's SDK.
+postgres = ["cfe[stack]", "psycopg[binary]>=3.2"]
+redis = ["cfe[stack]", "django-redis>=5.4", "redis>=5.2"]
+qstash = ["cfe[stack]", "django-qstash>=0.0.12"]
+celery = ["cfe[stack,redis]", "celery>=5.4", "django-celery-beat>=2.7", "django-celery-results>=2.5"]
+s3 = ["cfe[stack]", "django-storages[s3]>=1.14", "boto3>=1.35"]
+stripe = ["cfe[stack]", "stripe>=12"]
+all = ["cfe[stack,postgres,redis,qstash,celery,s3,stripe]"]
+
+[project.urls]
+Homepage = "https://github.com/jmitchel3/cfe"
+Repository = "https://github.com/jmitchel3/cfe"
+
 [project.scripts]
 cfe = "cfe.main:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-django>=4.9", "ruff>=0.7"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cfe"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["examples"]
