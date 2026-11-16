@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Verify tag matches package version
+        timeout-minutes: 2
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          tag_version="${TAG#v}"
+          pyproject_version=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          init_version=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*[\"\']([^\"\']+)', open('cfe/__init__.py').read()).group(1))")
+          echo "tag=$tag_version pyproject.toml=$pyproject_version cfe/__init__.py=$init_version"
+          if [ "$tag_version" != "$pyproject_version" ] || [ "$tag_version" != "$init_version" ]; then
+            echo "::error::Release tag $TAG (version $tag_version) does not match pyproject.toml ($pyproject_version) and cfe/__init__.py __version__ ($init_version). Bump both, then re-tag."
+            exit 1
+          fi
+      - name: Install
+        timeout-minutes: 5
+        run: uv sync --extra all
+      - name: Tests
+        timeout-minutes: 5
+        run: uv run pytest -q
+      - name: Build
+        timeout-minutes: 5
+        run: uv build
+      - name: Verify wheel installs without Django
+        timeout-minutes: 5
+        run: |
+          uv venv "$RUNNER_TEMP/wheel-check" --python 3.12
+          uv pip install --python "$RUNNER_TEMP/wheel-check/bin/python" dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-check/bin/python" -c "import sys, cfe.main; assert 'django' not in sys.modules, 'cfe.main imported django'"
+          "$RUNNER_TEMP/wheel-check/bin/cfe" --help > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: release
+      url: https://pypi.org/p/cfe
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        timeout-minutes: 5
+        uses: pypa/gh-action-pypi-publish@release/v1
