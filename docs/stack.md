@@ -20,17 +20,37 @@ List modules in `CFE_MODULES` (comma or space separated):
 CFE_MODULES=postgres,redis,celery,s3,smtp,stripe
 ```
 
-At the end of `settings.py`:
+Load the stack at the top of `settings.py`, then assign its values explicitly:
 
 ```python
 import cfe.stack
+from cfe.env import Csv, config
 
-cfe.stack.configure(globals())
+stack = cfe.stack.load()  # reads CFE_MODULES and module env vars
+
+DEBUG = config("DJANGO_DEBUG", default=False, cast=bool)
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
+
+INSTALLED_APPS = [*DJANGO_APPS, *PROJECT_APPS, *stack.installed_apps]
+MIDDLEWARE = stack.middleware([...])               # module middleware inserted at its anchor
+DATABASES = stack.databases({"default": SQLITE})   # module value layered over yours
+CACHES = stack.caches()
+STORAGES = stack.storages()                        # keeps Django's "staticfiles" entry
+
+# Library settings modules provide (CELERY_*, EMAIL_*, STRIPE_*, ...), plus
+# CFE_STACK, CFE_STACK_MODULES, CFE_STACK_SLOTS.
+globals().update(stack.extra_settings())
 ```
 
-`configure()` validates the selection, reads each module's env vars, and writes their settings into the namespace. It also appends `cfe.stack` and each module's apps to `INSTALLED_APPS`, inserts their middleware, and sets `CFE_STACK_MODULES` and `CFE_STACK_SLOTS`. Anything you assign after the call overrides what modules set.
+Nothing is written into your settings behind your back. `python manage.py cfe settings` lists every value a module provides, which module set it, and where to assign it. Django system checks (`cfe_stack.W001` to `W004`) warn when a module's database, cache, storage, apps, or middleware are not actually assigned, so a module is never silently ignored.
 
-Merge rules: if your settings already hold a dict under a key a module sets, the module's keys replace matching keys (so `DATABASES["default"]` is replaced and other aliases are kept). Otherwise the module's value wins. Two modules setting the same non-dict setting to different values is an error.
+### Env vars: `cfe.env`
+
+`cfe.env` is a fork of [python-decouple](https://github.com/HBNetwork/python-decouple) 3.8 (MIT), bundled so the stack has one env loader with no extra dependency. `config("KEY", default=..., cast=...)`, `Csv`, `Choices`, `AutoConfig`, and the `.env`, `settings.ini`, and secrets-directory repositories work as in decouple. Lookup order: `os.environ` first (so `doppler run --` and container env win), then the nearest `settings.ini` or `.env` walking up from the directory of `settings.py`. `.env` lines may start with `export `.
+
+`cfe.stack.load()` reads module env vars through the same source. Pass `environ={...}` (tests) or `search_path=` to override; `modules="postgres,redis"` overrides `CFE_MODULES`.
+
+Merge rules: `stack.databases(base)` returns `base` with the module's aliases replacing matching ones (`default` is replaced, other aliases kept). With no `base`, dict settings layer over Django's own default. Two modules setting the same non-dict setting to different values is an error, and so is a middleware anchor that is not in your list.
 
 In `urls.py`, mount the URLs of enabled modules:
 
@@ -49,7 +69,7 @@ Each module mounts at its `url_prefix` (default `<name>/`).
 
 A slot is a capability that exactly one enabled module may fill: `database`, `cache`, `broker`, `tasks`, `storage`, `email`, `billing`. Enabling two modules for the same slot is a configuration error. A module can also require another module (`requires`) or require that some module fills a slot (`requires_slots`, e.g. celery needs a `broker`).
 
-`cfe.stack.current()` returns the resolved stack; `current().provider("cache")` gives the module filling a slot.
+`settings.CFE_STACK` is the loaded stack (its repr shows module names only, never env values). `settings.CFE_STACK.provider("cache")` gives the module filling a slot, and `stack.env("stripe").STRIPE_SECRET_KEY` reads the resolved env of an enabled module.
 
 ## Hooks
 

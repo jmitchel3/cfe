@@ -15,16 +15,10 @@ class StackConfig(AppConfig):
     verbose_name = "CFE Stack"
 
     def ready(self) -> None:
-        from . import hooks, loader, registry
+        from . import checks, hooks, registry  # noqa: F401 (checks registers itself)
 
-        stack = loader.current()
-        enabled = getattr(settings, "CFE_STACK_MODULES", [])
-        if [m.name for m in stack.modules] != list(enabled):
-            # configure() ran in another process or was bypassed; rebuild from
-            # settings without re-validating env (settings already loaded).
-            stack = loader.Stack(modules=[registry.get(n)() for n in enabled])
-
-        for module in stack.modules:
+        for name in getattr(settings, "CFE_STACK_MODULES", []):
+            module = registry.get(name)()
             for hook_name, target in module.hooks.items():
                 hooks.register(hook_name, import_string(target))
             if module.nav:

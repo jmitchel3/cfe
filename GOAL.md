@@ -5,7 +5,7 @@ Ship the first working version of `cfe.stack`: a module system for Django, inspi
 ## Done means
 
 1. `pip install "cfe[all]"` installs the CLI, Django, and every first-party module's SDK. `pip install cfe` installs the CLI only, with no Django.
-2. A Django project enables modules with one env var, e.g. `CFE_MODULES=postgres,redis,celery,s3,smtp,stripe`, and its `settings.py` calls `cfe.stack.configure(globals())`. No vendor-specific code remains in the project's settings.
+2. A Django project enables modules with one env var, e.g. `CFE_MODULES=postgres,redis,celery,s3,smtp,stripe`, and its `settings.py` calls `stack = cfe.stack.load()` and assigns each value explicitly (`DATABASES = stack.databases(...)`), with env loaded through `cfe.env`. No vendor-specific code remains in the project's settings.
 3. `cfe.run` boots and passes its tests in two configurations, with no code changes between them:
    - **Local, open source:** `docker compose up` with Postgres, Redis, RustFS (S3), Mailpit, and a Celery worker.
    - **Managed:** Neon (or Xata) Postgres, Upstash Redis, QStash tasks, Cloudflare R2, with secrets injected by `doppler run --`.

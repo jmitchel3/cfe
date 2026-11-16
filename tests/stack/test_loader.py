@@ -1,6 +1,7 @@
 import pytest
 
 from cfe.stack import EnvVar, Module, StackConfigError, hooks, loader, registry
+from tests.stack.helpers import apply_stack
 
 
 class Alpha(Module):
@@ -46,10 +47,7 @@ def test_configure_merges_settings_apps_and_middleware(fake_registry):
         "MIDDLEWARE": ["django.middleware.common.CommonMiddleware", "x.Last"],
         "CACHES": {"default": {"LOCATION": "old"}, "keep": {}},
     }
-    stack = loader.configure(
-        ns, modules="alpha,gamma", environ={"ALPHA_URL": "redis://x", "OLD_FLAG": "on"}
-    )
-    assert [m.name for m in stack.modules] == ["alpha", "gamma"]
+    ns = apply_stack("alpha,gamma", {"ALPHA_URL": "redis://x", "OLD_FLAG": "on"}, ns)
     assert ns["CACHES"] == {"default": {"LOCATION": "redis://x"}, "other": {"N": 3}, "keep": {}}
     assert ns["GAMMA_FLAG"] == "on"
     assert ns["INSTALLED_APPS"] == ["django.contrib.auth", "cfe.stack", "alpha_app"]
@@ -103,7 +101,7 @@ def test_conflicting_scalar_settings(fake_registry, monkeypatch):
 
     monkeypatch.setattr(registry, "available", lambda: {**fake_registry, "delta": Delta})
     with pytest.raises(StackConfigError, match="both set ALPHA"):
-        loader.configure({}, modules="alpha,delta", environ={"ALPHA_URL": "x"})
+        loader.load("alpha,delta", environ={"ALPHA_URL": "x"}).settings()
 
 
 def test_builtin_registry_has_sqlite():
@@ -140,6 +138,40 @@ def test_unset_dict_setting_merges_with_django_default(monkeypatch):
 
     monkeypatch.setattr(registry, "available", lambda: {"store": Store})
     ns = {}
-    loader.configure(ns, modules="store", environ={})
+    ns = apply_stack("store", {}, ns)
     assert ns["STORAGES"]["default"] == {"BACKEND": "x.Storage"}
     assert "staticfiles" in ns["STORAGES"]
+
+
+def test_middleware_missing_anchor_raises(fake_registry):
+    stack = loader.load("alpha", environ={"ALPHA_URL": "x"})
+    with pytest.raises(StackConfigError, match="not in MIDDLEWARE"):
+        stack.middleware(["x.Other"])
+
+
+def test_sources_and_extra_settings(fake_registry):
+    stack = loader.load("alpha,gamma", environ={"ALPHA_URL": "x"})
+    assert stack.sources() == {"CACHES": "alpha", "ALPHA": "alpha", "GAMMA_FLAG": "gamma"}
+    extra = stack.extra_settings()
+    assert "CACHES" not in extra
+    assert extra["ALPHA"] is True
+    assert extra["CFE_STACK_MODULES"] == ["alpha", "gamma"]
+    assert stack.env("alpha").ALPHA_URL == "x"
+
+
+def test_load_reads_dotenv_from_search_path(fake_registry, tmp_path, monkeypatch):
+    monkeypatch.delenv("ALPHA_URL", raising=False)
+    monkeypatch.delenv("CFE_MODULES", raising=False)
+    (tmp_path / ".env").write_text("CFE_MODULES=alpha\nexport ALPHA_URL='redis://dotenv'\n")
+    stack = loader.load(search_path=tmp_path)
+    assert stack.names == ["alpha"]
+    assert stack.env("alpha").ALPHA_URL == "redis://dotenv"
+    monkeypatch.setenv("ALPHA_URL", "redis://environ-wins")
+    assert loader.load(search_path=tmp_path).env("alpha").ALPHA_URL == "redis://environ-wins"
+
+
+def test_reprs_never_show_env_values(fake_registry):
+    stack = loader.load("alpha", environ={"ALPHA_URL": "redis://:hunter2@h"})
+    assert "hunter2" not in repr(stack)
+    assert "hunter2" not in repr(stack.env("alpha"))
+    assert repr(stack) == "<Stack alpha>"

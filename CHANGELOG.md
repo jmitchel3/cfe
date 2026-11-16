@@ -4,7 +4,8 @@
 
 ### Added
 
-- `cfe.stack`: a WordPress-style module system for Django. Enable modules with `CFE_MODULES` and call `cfe.stack.configure(globals())` at the end of `settings.py`. See [docs/stack.md](docs/stack.md).
+- `cfe.stack`: a WordPress-style module system for Django. Enable modules with `CFE_MODULES` load it with `cfe.stack.load()` in `settings.py`, and assign its values explicitly. `manage.py cfe settings` shows where each value comes from.
+- `cfe.env`: a bundled fork of python-decouple 3.8 (MIT) for env and `.env` loading, no extra dependency. See [docs/stack.md](docs/stack.md).
 - Module contract (`Module`, `EnvVar`), single-provider slots (database, cache, broker, tasks, storage, email, billing), dependency and env var validation, and a strict mode toggle (`CFE_STACK_STRICT`).
 - Actions and filters hooks (`cfe.stack.hooks`) and `module_urlpatterns()` for mounting module URLs.
 - Third-party module discovery through the `cfe.stack.modules` entry point group.

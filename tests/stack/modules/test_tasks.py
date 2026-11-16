@@ -6,6 +6,7 @@ from unittest import mock
 import pytest
 
 from cfe.stack import Module, StackConfigError, loader, registry, tasks
+from tests.stack.helpers import apply_stack
 
 QSTASH_ENV = {
     "QSTASH_TOKEN": "tok",
@@ -32,14 +33,14 @@ def with_fake_broker(monkeypatch):
 
 def test_sync_settings():
     ns = {}
-    loader.configure(ns, modules="sync", environ={})
+    ns = apply_stack("sync", {}, ns)
     assert ns["CFE_TASKS_BACKEND"] == "sync"
     assert ns["CFE_STACK_SLOTS"] == {"tasks": "sync"}
 
 
 def test_celery_settings(with_fake_broker):
     ns = {}
-    loader.configure(ns, modules="fakebroker,celery", environ={"CELERY_TASK_ALWAYS_EAGER": "true"})
+    ns = apply_stack("fakebroker,celery", {"CELERY_TASK_ALWAYS_EAGER": "true"}, ns)
     assert ns["CFE_TASKS_BACKEND"] == "celery"
     assert ns["CELERY_RESULT_BACKEND"] == "django-db"
     assert ns["CELERY_BEAT_SCHEDULER"] == "django_celery_beat.schedulers:DatabaseScheduler"
@@ -51,7 +52,7 @@ def test_celery_settings(with_fake_broker):
 
 def test_celery_eager_defaults_off(with_fake_broker):
     ns = {}
-    loader.configure(ns, modules="fakebroker,celery", environ={})
+    ns = apply_stack("fakebroker,celery", {}, ns)
     assert ns["CELERY_TASK_ALWAYS_EAGER"] is False
 
 
@@ -63,7 +64,7 @@ def test_celery_without_broker_errors():
 
 def test_qstash_settings():
     ns = {}
-    loader.configure(ns, modules="qstash", environ=QSTASH_ENV)
+    ns = apply_stack("qstash", QSTASH_ENV, ns)
     assert ns["CFE_TASKS_BACKEND"] == "qstash"
     assert ns["QSTASH_TOKEN"] == "tok"
     assert ns["QSTASH_CURRENT_SIGNING_KEY"] == "cur"
