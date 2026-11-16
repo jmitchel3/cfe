@@ -108,7 +108,9 @@ def build(
     stack = Stack()
     errors: list[str] = []
 
-    classes = [registry.get(n) for n in names]
+    # Local module paths (CFE_MODULE_PATHS) come from the same environ.
+    paths = registry.env_module_paths(environ)
+    classes = [registry.get(n, module_paths=paths) for n in names]
     modules = [cls() for cls in classes]
     enabled = {m.name for m in modules}
 
