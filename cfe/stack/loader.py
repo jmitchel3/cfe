@@ -192,6 +192,17 @@ def _deep_merge(left: dict, right: dict, path: str, a: str, b: str) -> dict:
     return out
 
 
+def _django_default(key: str) -> Any:
+    """Django's own default for a setting the project left unset, so a module
+    setting STORAGES["default"] keeps Django's default "staticfiles" entry."""
+    try:
+        from django.conf import global_settings
+    except ImportError:  # pragma: no cover
+        return None
+    value = getattr(global_settings, key, None)
+    return dict(value) if isinstance(value, dict) else None
+
+
 def configure(
     namespace: MutableMapping[str, Any],
     modules: list[str] | str | None = None,
@@ -220,7 +231,7 @@ def configure(
     stack = build(names, environ=environ, strict=strict)
 
     for key, value in merge_module_settings(stack).items():
-        existing = namespace.get(key)
+        existing = namespace.get(key, _django_default(key))
         if isinstance(existing, dict) and isinstance(value, dict):
             namespace[key] = {**existing, **value}
         else:

@@ -128,3 +128,18 @@ def test_django_settings_loaded(settings):
     assert settings.CFE_STACK_MODULES == ["sqlite"]
     assert "cfe.stack" in settings.INSTALLED_APPS
     assert settings.DATABASES["default"]["NAME"] == ":memory:"
+
+
+def test_unset_dict_setting_merges_with_django_default(monkeypatch):
+    class Store(Module):
+        name = "store"
+        provides = ("storage",)
+
+        def settings(self, env):
+            return {"STORAGES": {"default": {"BACKEND": "x.Storage"}}}
+
+    monkeypatch.setattr(registry, "available", lambda: {"store": Store})
+    ns = {}
+    loader.configure(ns, modules="store", environ={})
+    assert ns["STORAGES"]["default"] == {"BACKEND": "x.Storage"}
+    assert "staticfiles" in ns["STORAGES"]

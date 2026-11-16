@@ -7,7 +7,7 @@ Ship the first working version of `cfe.stack`: a module system for Django, inspi
 1. `pip install "cfe[all]"` installs the CLI, Django, and every first-party module's SDK. `pip install cfe` installs the CLI only, with no Django.
 2. A Django project enables modules with one env var, e.g. `CFE_MODULES=postgres,redis,celery,s3,smtp,stripe`, and its `settings.py` calls `cfe.stack.configure(globals())`. No vendor-specific code remains in the project's settings.
 3. `cfe.run` boots and passes its tests in two configurations, with no code changes between them:
-   - **Local, open source:** `docker compose up` with Postgres, Redis, MinIO, Mailpit, and a Celery worker.
+   - **Local, open source:** `docker compose up` with Postgres, Redis, RustFS (S3), Mailpit, and a Celery worker.
    - **Managed:** Neon (or Xata) Postgres, Upstash Redis, QStash tasks, Cloudflare R2, with secrets injected by `doppler run --`.
 4. `python manage.py cfe list` shows enabled modules and the slot each fills; `python manage.py cfe doctor` validates required env vars (names only, never values) and reachability.
 5. Third-party and paid modules install as separate packages (`cfe-stack-<name>`) and are discovered through the `cfe.stack.modules` entry point group.
@@ -27,6 +27,6 @@ Ship the first working version of `cfe.stack`: a module system for Django, inspi
 | cache | `redis` (Docker or managed), `redis-upstash`, `locmem` |
 | broker | `redis`, `redis-upstash` |
 | tasks | `celery`, `qstash`, `sync` |
-| storage | `s3` (S3, R2, MinIO, Tigris), `local` |
+| storage | `s3` (S3, R2, RustFS, MinIO, Tigris), `local` |
 | email | `smtp`, `console` |
 | billing | `stripe` |
