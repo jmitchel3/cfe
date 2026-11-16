@@ -122,6 +122,7 @@ all = [
     { name = "django-qstash" },
     { name = "django-redis" },
     { name = "django-storages", extra = ["s3"] },
+    { name = "packaging" },
     { name = "psycopg", extra = ["binary"] },
     { name = "redis" },
     { name = "stripe" },
@@ -133,6 +134,7 @@ celery = [
     { name = "django-celery-beat" },
     { name = "django-celery-results" },
     { name = "django-redis" },
+    { name = "packaging" },
     { name = "redis" },
 ]
 postgres = [
@@ -192,6 +194,7 @@ requires-dist = [
     { name = "django-qstash", marker = "extra == 'qstash'", specifier = ">=0.0.12" },
     { name = "django-redis", marker = "extra == 'redis'", specifier = ">=5.4" },
     { name = "django-storages", extras = ["s3"], marker = "extra == 's3'", specifier = ">=1.14" },
+    { name = "packaging", marker = "extra == 'celery'", specifier = ">=24" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=5.2" },
     { name = "rich", specifier = ">=13.7.0" },

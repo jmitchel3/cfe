@@ -25,13 +25,15 @@ Examples:
 ```sh
 # Cloudflare R2
 S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
-# MinIO in Docker
+# RustFS in Docker (local dev; verified end to end)
 S3_ENDPOINT_URL=http://localhost:9000
 # Tigris
 S3_ENDPOINT_URL=https://fly.storage.tigris.dev
 # Backblaze B2
 S3_ENDPOINT_URL=https://s3.<region>.backblazeb2.com S3_REGION=<region>
 ```
+
+MinIO no longer publishes Docker images (Docker Hub and quay.io pulls fail), so local Docker setups use RustFS (`rustfs/rustfs`, env `RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY`) or SeaweedFS. Existing MinIO servers still work with the same settings.
 
 `cfe doctor` runs `head_bucket` and reports only the exception type and error code.
 
