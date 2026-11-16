@@ -102,7 +102,7 @@ cfe add htmx
 
 ## CFE Stack
 
-`cfe.stack` is a module system for Django: enable services with one env var (`CFE_MODULES=postgres,redis,celery,s3,smtp,stripe`) and call `cfe.stack.configure(globals())` at the end of `settings.py`. Swap local open-source services for managed ones by changing env vars only.
+`cfe.stack` is a module system for Django: enable services with one env var (`CFE_MODULES=postgres,redis,celery,s3,smtp,stripe`) load it with `stack = cfe.stack.load()` in `settings.py`, and assign its values explicitly (`DATABASES = stack.databases(...)`). Env vars load through `cfe.env`, a bundled fork of python-decouple. Swap local open-source services for managed ones by changing env vars only.
 
 ```bash
 pip install "cfe[all]"

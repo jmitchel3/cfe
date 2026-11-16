@@ -6,9 +6,9 @@ Never prints env var values; only names and whether they are set.
 from __future__ import annotations
 
 import importlib.util
-import os
 import re
 from collections.abc import Mapping
+from functools import cached_property
 from pathlib import Path
 
 from django.conf import settings
@@ -61,6 +61,10 @@ class Command(BaseCommand):
         env.add_argument(
             "--names", action="store_true", help="Print bare names, one per line (for Doppler)."
         )
+        sub.add_parser(
+            "settings",
+            help="Settings enabled modules provide and which module set each (names only).",
+        )
         new = sub.add_parser("new", help="Scaffold a local module file.")
         new.add_argument("name", help="Module name, e.g. analytics.")
         new.add_argument("--path", help="File to write (default ./modules/<name>.py).")
@@ -72,9 +76,15 @@ class Command(BaseCommand):
 
     # Helpers
 
+    @cached_property
+    def stack(self) -> loader.Stack:
+        """The running process's stack, rebuilt from settings (env read through
+        cfe.env: os.environ, then .env/settings.ini)."""
+        return loader.runtime()
+
     @property
     def environ(self) -> Mapping[str, str]:
-        return os.environ
+        return self.stack.environ
 
     def module_paths(self) -> tuple[str, ...]:
         return registry.env_module_paths(self.environ)
@@ -83,7 +93,7 @@ class Command(BaseCommand):
         return list(getattr(settings, "CFE_STACK_MODULES", []))
 
     def enabled_modules(self) -> list[Module]:
-        stack = loader.current()
+        stack = self.stack
         names = self.enabled_names()
         if [m.name for m in stack.modules] == names:
             return list(stack.modules)
@@ -128,14 +138,14 @@ class Command(BaseCommand):
             self.stdout.write("  (no slots filled)")
         for slot, name in sorted(slots.items()):
             self.stdout.write(f"  {slot} -> {name}")
-        skipped = loader.current().skipped
+        skipped = self.stack.skipped
         for name, reason in skipped.items():
             self.stdout.write(self.style.WARNING(f"  skipped {name}: {reason}"))
 
     def cmd_doctor(self, offline: bool = False, **options) -> None:
         failures = 0
-        stack = loader.current()
         try:
+            stack = self.stack
             modules = self.enabled_modules()
         except StackConfigError as exc:
             raise CommandError(str(exc), returncode=1) from None
@@ -192,6 +202,26 @@ class Command(BaseCommand):
         if failures:
             raise CommandError(f"cfe doctor found {failures} problem(s)", returncode=1)
         self.stdout.write(self.style.SUCCESS("cfe doctor: all good"))
+
+    def cmd_settings(self, **options) -> None:
+        stack = self.stack
+        merged = stack.settings()
+        sources = stack.sources()
+        if not merged:
+            self.stdout.write("No settings provided by enabled modules.")
+            return
+        rows = [["SETTING", "MODULE", "ASSIGN IN settings.py"]]
+        for key in sorted(merged):
+            if key in loader.SLOT_SETTINGS:
+                where = f"{key} = stack.{key.lower()}(...)"
+                key = f"{key}[{', '.join(repr(k) for k in merged[key])}]"
+            else:
+                where = "globals().update(stack.extra_settings())"
+            rows.append([key, sources.get(key.split("[")[0], "?"), where])
+        lines = table(rows)
+        self.stdout.write(self.style.MIGRATE_HEADING(lines[0]))
+        for line in lines[1:]:
+            self.stdout.write(line)
 
     def cmd_env(self, all: bool = False, names: bool = False, **options) -> None:
         if all:

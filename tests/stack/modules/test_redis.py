@@ -4,6 +4,7 @@ import pytest
 
 from cfe.stack import StackConfigError, loader, registry
 from cfe.stack.modules.redis import Redis, RedisUpstash
+from tests.stack.helpers import apply_stack
 
 UPSTASH = "rediss://default:tok3n@eu1-sharp-cat-1.upstash.io:6379"
 
@@ -17,7 +18,7 @@ def _registry():
 
 def configure(modules, environ):
     ns = {}
-    loader.configure(ns, modules=modules, environ=environ)
+    ns = apply_stack(modules, environ, ns)
     return ns
 
 

@@ -5,6 +5,7 @@ import pytest
 from cfe.stack import StackConfigError, loader
 from cfe.stack.modules.local_storage import LocalStorage
 from cfe.stack.modules.s3 import S3
+from tests.stack.helpers import apply_stack
 
 SECRET = "sup3r-s3cret-value"
 BASE = {"S3_BUCKET": "media", "S3_ACCESS_KEY_ID": "AKIAEXAMPLE", "S3_SECRET_ACCESS_KEY": SECRET}
@@ -12,7 +13,7 @@ BASE = {"S3_BUCKET": "media", "S3_ACCESS_KEY_ID": "AKIAEXAMPLE", "S3_SECRET_ACCE
 
 def configure(modules, environ, ns=None):
     ns = {} if ns is None else ns
-    loader.configure(ns, modules=modules, environ=environ)
+    ns = apply_stack(modules, environ, ns)
     return ns
 
 

@@ -5,6 +5,7 @@ import pytest
 
 from cfe.stack import StackConfigError, loader
 from cfe.stack.modules.smtp import SMTP, parse_email_url
+from tests.stack.helpers import apply_stack
 
 SECRET = "p@ss/w0rd-secret"
 BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -12,7 +13,7 @@ BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 def configure(modules, environ):
     ns = {}
-    loader.configure(ns, modules=modules, environ=environ)
+    ns = apply_stack(modules, environ, ns)
     return ns
 
 

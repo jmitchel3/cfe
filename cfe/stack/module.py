@@ -37,7 +37,7 @@ class EnvVar:
     aliases: tuple[str, ...] = ()
 
 
-@dataclass
+@dataclass(repr=False)
 class Env:
     """Resolved env values for one module, readable as attributes."""
 
@@ -51,6 +51,10 @@ class Env:
 
     def get(self, name: str, default: Any = None) -> Any:
         return self.values.get(name, default)
+
+    def __repr__(self) -> str:
+        # Values may be secrets; show names only.
+        return f"<Env {', '.join(self.values)}>"
 
 
 class Module:

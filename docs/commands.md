@@ -16,6 +16,10 @@ For each enabled module:
 
 Modules skipped by non-strict mode (`CFE_STACK_STRICT=false`) count as failures. Exit code is 1 when anything fails, so it works as a deploy or CI gate.
 
+## `python manage.py cfe settings`
+
+Every setting enabled modules provide, the module that set it, and where `settings.py` must assign it. Names only, never values.
+
 ## `python manage.py cfe env [--all] [--names]`
 
 Every env var of the enabled modules: module, name, required, secret, has default, set. `--all` covers every available module. `--names` prints bare names, one per line, which is handy for creating Doppler configs:
@@ -37,7 +41,7 @@ CFE_MODULE_PATHS=myproject.modules.analytics,myproject.modules.audit
 CFE_MODULES=postgres,redis,analytics
 ```
 
-Discovery order is built-ins, then `cfe.stack.modules` entry points, then local paths. A name defined twice is an error; nothing can shadow a built-in. `configure(globals(), environ=...)` reads `CFE_MODULE_PATHS` from that same `environ`. In code: `registry.available(registry.env_module_paths(environ))`.
+Discovery order is built-ins, then `cfe.stack.modules` entry points, then local paths. A name defined twice is an error; nothing can shadow a built-in. `cfe.stack.load(environ=...)` reads `CFE_MODULE_PATHS` from that same `environ`. In code: `registry.available(registry.env_module_paths(environ))`.
 
 ## `cfe stack modules` (CLI)
 

@@ -10,6 +10,7 @@ from cfe.stack import hooks, loader
 from cfe.stack.contrib.stripe import client
 from cfe.stack.module import Env
 from cfe.stack.modules.stripe import Stripe, key_mode
+from tests.stack.helpers import apply_stack
 
 urlpatterns = [path("stripe/", include("cfe.stack.contrib.stripe.urls"))]
 
@@ -65,7 +66,7 @@ def sub(status="active", **extra):
 
 def test_configure_sets_settings_apps_and_slot():
     ns = {"INSTALLED_APPS": []}
-    loader.configure(ns, modules="stripe", environ={**ENV, "STRIPE_API_VERSION": "2026-09-30"})
+    ns = apply_stack("stripe", {**ENV, "STRIPE_API_VERSION": "2026-09-30"}, ns)
     assert ns["STRIPE_SECRET_KEY"] == SK
     assert ns["STRIPE_WEBHOOK_SECRET"] == WHSEC
     assert ns["STRIPE_PUBLISHABLE_KEY"] is None

@@ -16,7 +16,7 @@ XATA_RW = f"postgresql://ws:{PASSWORD}@br-1-rw.us-east-1.xata.sh:5432/app:main"
 
 def settings_for(name, **environ):
     stack = loader.build([name], environ=environ)
-    return loader.merge_module_settings(stack)["DATABASES"]
+    return stack.settings()["DATABASES"]
 
 
 def test_plain_postgres():

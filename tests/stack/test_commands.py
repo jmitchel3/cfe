@@ -73,16 +73,16 @@ def local_modules(tmp_path, monkeypatch):
 @pytest.fixture
 def enable(monkeypatch, settings):
     """Configure the stack in-process for the given modules, using os.environ."""
-    monkeypatch.setattr(loader, "_current", loader._current)
 
     def _enable(modules, strict=True, **env):
         for key, value in env.items():
             monkeypatch.setenv(key, value)
-        ns = {}
-        loader.configure(ns, modules=modules, strict=strict)
-        settings.CFE_STACK_MODULES = ns["CFE_STACK_MODULES"]
-        settings.CFE_STACK_SLOTS = ns["CFE_STACK_SLOTS"]
-        return ns
+        # Live env source (os.environ, then .env), like a real settings.py.
+        stack = loader.load(modules, strict=strict)
+        for key, value in stack.extra_settings().items():
+            if key.startswith("CFE_STACK"):
+                setattr(settings, key, value)
+        return stack.extra_settings()
 
     return _enable
 
@@ -99,11 +99,10 @@ def test_local_discovery_via_env(local_modules):
 
 def test_configure_reads_module_paths_from_its_environ(local_modules, monkeypatch):
     monkeypatch.delenv("CFE_MODULE_PATHS")
-    ns = {}
     environ = {"CFE_MODULE_PATHS": local_modules, "TRACKER_TOKEN": "t"}
-    stack = loader.configure(ns, modules="tracker", environ=environ)
-    assert [m.name for m in stack.modules] == ["tracker"]
-    assert ns["TRACKER"] == {"HOST": "local"}
+    stack = loader.load("tracker", environ=environ)
+    assert stack.names == ["tracker"]
+    assert stack.extra_settings()["TRACKER"] == {"HOST": "local"}
     with pytest.raises(StackConfigError, match="unknown cfe.stack module 'tracker'"):
         loader.build(["tracker"], environ={"TRACKER_TOKEN": "t"})
 
