@@ -26,9 +26,9 @@ DEFAULT_HOST = "https://www.codingforentrepreneurs.com"
 GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 TIMEOUT = 15
 TERMINAL_ERRORS = {
-    "expired_token": "The code expired before it was approved. Run `cfe auth login` again.",
+    "expired_token": "The code expired before it was approved. Run `cfe login` again.",
     "access_denied": "Authorization was denied in the browser.",
-    "invalid_grant": "The code is no longer valid. Run `cfe auth login` again.",
+    "invalid_grant": "The code is no longer valid. Run `cfe login` again.",
     "invalid_request": "The server rejected the request (invalid_request).",
     "unsupported_grant_type": "The server rejected the request (unsupported_grant_type).",
 }
@@ -166,6 +166,8 @@ def api_request(
         body = json.loads(raw) if raw else None
     except ValueError:
         body = None
+    if status == 426:
+        raise ApiError(f"cfe {__version__} is too old for this server. Run: cfe update")
     return status, body, {k.lower(): v for k, v in dict(resp_headers or {}).items()}
 
 
@@ -302,13 +304,13 @@ def status_cmd(host: str | None = HostOption):
     host = normalize_host(host)
     token = resolve_token(host)
     if not token:
-        raise _fail(f"Not logged in to {host}. Run `cfe auth login`.")
+        raise _fail(f"Not logged in to {host}. Run `cfe login`.")
     try:
         code, body, _ = api_request("GET", host, "me", token=token)
     except ApiError as exc:
         raise _fail(str(exc))
     if code == 401:
-        raise _fail(f"The token for {host} is invalid or was revoked. Run `cfe auth login`.")
+        raise _fail(f"The token for {host} is invalid or was revoked. Run `cfe login`.")
     if code != 200 or not isinstance(body, dict):
         raise _fail(f"Could not fetch your account (HTTP {code}).")
 
@@ -375,6 +377,6 @@ def token_cmd(host: str | None = HostOption):
     """Print the access token (for scripts: `$(cfe auth token)`)."""
     token = resolve_token(normalize_host(host))
     if not token:
-        err_console.print("Not logged in. Run `cfe auth login`.")
+        err_console.print("Not logged in. Run `cfe login`.")
         raise typer.Exit(code=1)
     typer.echo(token)
