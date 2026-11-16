@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>HTMX Examples</h1>
+    
+    <!-- Example 1: Simple GET request -->
+    <section>
+        <h2>1. Simple Click to Load</h2>
+        <button hx-get="/api/message" 
+                hx-target="#result-1" 
+                hx-swap="innerHTML">
+            Click to Load Message
+        </button>
+        <div id="result-1"></div>
+    </section>
+
+    <!-- Example 2: Form submission -->
+    <section>
+        <h2>2. Form Submission</h2>
+        <form hx-post="/api/submit" 
+              hx-target="#result-2"
+              hx-swap="innerHTML">
+            <input type="text" name="text" placeholder="Enter text" required>
+            <button type="submit">Submit</button>
+        </form>
+        <div id="result-2"></div>
+    </section>
+
+    <!-- Example 3: Live search -->
+    <section>
+        <h2>3. Live Search</h2>
+        <input type="search" 
+               name="search"
+               placeholder="Search..."
+               hx-get="/api/search"
+               hx-trigger="keyup changed delay:300ms"
+               hx-target="#search-results"
+               hx-indicator="#spinner">
+        <span id="spinner" class="htmx-indicator">Searching...</span>
+        <div id="search-results"></div>
+    </section>
+
+    <!-- Example 4: Delete with confirmation -->
+    <section>
+        <h2>4. Delete with Confirmation</h2>
+        <button hx-delete="/api/item/1"
+                hx-confirm="Are you sure you want to delete this item?"
+                hx-target="#result-4"
+                hx-swap="innerHTML">
+            Delete Item
+        </button>
+        <div id="result-4"></div>
+    </section>
+
+    <!-- Example 5: Infinite scroll -->
+    <section>
+        <h2>5. Infinite Scroll</h2>
+        <div id="infinite-scroll-container">
+            <!-- Initial items -->
+            <div hx-get="/api/items?page=2"
+                 hx-trigger="revealed"
+                 hx-swap="afterend">
+                <p>Item 1</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+    h2 { margin-top: 0; }
+    input, button { padding: 8px 16px; margin: 5px; }
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator { display: inline; }
+    .htmx-request.htmx-indicator { display: inline; }
+</style>
+{% endblock %}
+

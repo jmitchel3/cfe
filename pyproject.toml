@@ -1,0 +1,17 @@
+[project]
+name = "cfe"
+version = "0.0.23"
+description = "Build your Python apps faster with battle-tested components, templates, and more."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+]
+
+[project.scripts]
+cfe = "cfe.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

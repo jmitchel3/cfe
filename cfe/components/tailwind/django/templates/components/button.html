@@ -1,0 +1,24 @@
+{% comment %}
+Button Component - Usage:
+{% include "components/button.html" with text="Click me" variant="primary" href="/action" %}
+
+Props:
+- text: Button text (required)
+- variant: primary|secondary|outline (default: primary)
+- href: URL for link button (optional)
+- type: button|submit (default: button, only if no href)
+- classes: Additional CSS classes (optional)
+{% endcomment %}
+
+{% if href %}
+    <a href="{{ href }}" 
+       class="btn {% if variant == 'secondary' %}btn-secondary{% elif variant == 'outline' %}border border-gray-300 text-gray-700 hover:bg-gray-50{% else %}btn-primary{% endif %} {{ classes }}">
+        {{ text }}
+    </a>
+{% else %}
+    <button type="{{ type|default:'button' }}" 
+            class="btn {% if variant == 'secondary' %}btn-secondary{% elif variant == 'outline' %}border border-gray-300 text-gray-700 hover:bg-gray-50{% else %}btn-primary{% endif %} {{ classes }}">
+        {{ text }}
+    </button>
+{% endif %}
+

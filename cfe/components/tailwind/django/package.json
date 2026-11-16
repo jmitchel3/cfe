@@ -1,0 +1,12 @@
+{
+  "name": "{{PROJECT_NAME}}",
+  "version": "1.0.0",
+  "scripts": {
+    "tailwind:watch": "tailwindcss -i ./static/src/input.css -o ./static/dist/output.css --watch",
+    "tailwind:build": "tailwindcss -i ./static/src/input.css -o ./static/dist/output.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
+

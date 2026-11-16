@@ -1,0 +1,22 @@
+{% comment %}
+Card Component - Usage:
+{% include "components/card.html" with title="Card Title" content="Card content" %}
+
+Props:
+- title: Card title (optional)
+- content: Card content (optional, can use {% block card_content %} instead)
+- classes: Additional CSS classes (optional)
+{% endcomment %}
+
+<div class="card {{ classes }}">
+    {% if title %}
+        <h3 class="text-xl font-semibold mb-4 text-gray-900">{{ title }}</h3>
+    {% endif %}
+    
+    {% if content %}
+        <div class="text-gray-600">{{ content }}</div>
+    {% else %}
+        {% block card_content %}{% endblock %}
+    {% endif %}
+</div>
+

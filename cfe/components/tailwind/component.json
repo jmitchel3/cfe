@@ -1,0 +1,27 @@
+{
+  "name": "tailwind",
+  "description": "Add Tailwind CSS with automatic configuration",
+  "version": "3.4.0",
+  "frameworks": ["django"],
+  "packages": [],
+  "npm_packages": {
+    "tailwindcss": "^3.4.0"
+  },
+  "files": {
+    "django": [
+      "tailwind.config.js",
+      "package.json",
+      "static/src/input.css",
+      "templates/base.html",
+      "templates/components/button.html",
+      "templates/components/card.html"
+    ]
+  },
+  "next_steps": [
+    "Run 'npm install' to install Tailwind CSS",
+    "Run 'npm run tailwind:watch' to start the Tailwind build process",
+    "Update your templates to extend from base.html",
+    "Start using Tailwind utility classes in your HTML"
+  ]
+}
+

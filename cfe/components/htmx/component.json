@@ -1,0 +1,21 @@
+{
+  "name": "htmx",
+  "description": "Add htmx for dynamic HTML interactions without writing JavaScript",
+  "version": "2.0.0",
+  "frameworks": ["django"],
+  "packages": [],
+  "cdn": "https://unpkg.com/htmx.org@2.0.0",
+  "files": {
+    "django": [
+      "templates/base.html",
+      "templates/components/htmx_example.html"
+    ]
+  },
+  "next_steps": [
+    "Include the htmx script in your base template (already done)",
+    "Start adding htmx attributes to your HTML elements",
+    "Check out the example template in templates/components/htmx_example.html",
+    "Visit https://htmx.org/docs/ for more information"
+  ]
+}
+
