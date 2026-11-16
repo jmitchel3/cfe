@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
+from .auth import auth_app
 from .components import get_component, list_components
 from .detectors.package_manager import detect_package_manager, install_packages
 from .detectors.project_type import detect_project
@@ -176,6 +177,7 @@ stack_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(stack_app, name="stack")
+app.add_typer(auth_app, name="auth")
 
 
 @stack_app.command("modules")

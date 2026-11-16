@@ -27,8 +27,8 @@ jobs:
       - name: Lint
         timeout-minutes: 2
         run: |
-          uv run ruff check cfe/stack cfe/env.py tests
-          uv run ruff format --check cfe/stack cfe/env.py tests
+          uv run ruff check cfe/stack cfe/env.py cfe/auth.py tests
+          uv run ruff format --check cfe/stack cfe/env.py cfe/auth.py tests
       - name: CLI imports without Django
         timeout-minutes: 2
         run: uv run --no-sync python -c "import sys, cfe.main, cfe.env; assert 'django' not in sys.modules"

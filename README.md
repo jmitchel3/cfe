@@ -68,6 +68,23 @@ Detect and display your project information.
 cfe init
 ```
 
+### `cfe auth`
+
+Sign in to your CodingForEntrepreneurs account (like `gh auth login`). No password is handled by the CLI: it shows a one-time code, you approve it in the browser, and a token is saved locally.
+
+```bash
+cfe auth login            # opens your browser; --no-browser prints the URL instead
+cfe auth status           # who you are, token prefix, subscription and course access
+cfe auth token            # print the token for scripts: curl -H "Authorization: Bearer $(cfe auth token)" ...
+cfe auth logout           # revoke the token on the server and delete the local copy
+```
+
+Options and environment:
+- `--host` / `CFE_HOST`: server URL (default `https://www.codingforentrepreneurs.com`).
+- `CFE_TOKEN`: use this token instead of the stored one (CI, containers).
+- `CFE_CONFIG_DIR`: where `hosts.json` lives (default `~/.config/cfe`, or `$XDG_CONFIG_HOME/cfe`). The directory is `0700` and the file is `0600`.
+- `cfe auth login --force` re-authenticates without asking if you are already logged in.
+
 ## Available Components
 
 ### Tailwind CSS

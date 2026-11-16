@@ -128,6 +128,25 @@ Check `templates/components/htmx_example.html` for working examples of:
 - Delete confirmations
 - Infinite scroll
 
+## Authentication
+
+```bash
+cfe auth login
+```
+
+Prints a one-time code like `BCDF-GHJK`, then press Enter to open the approval page in your browser (use `--no-browser` on servers or in SSH sessions and open the printed URL yourself). Once you approve, the CLI saves a token to `~/.config/cfe/hosts.json` (permissions `0600`) and prints `Logged in as you@example.com`.
+
+```bash
+cfe auth status    # host, email, token prefix, subscription, lifetime, courses, roadmaps
+cfe auth token     # raw token on stdout, for $(cfe auth token)
+cfe auth logout    # revokes the token on the server, then removes it locally
+```
+
+Notes:
+- `status` exits with code 1 when you are not logged in or the token was revoked.
+- Set `CFE_TOKEN` to override the stored token (useful in CI). Set `CFE_HOST` or pass `--host` to talk to another server, for example `--host http://127.0.0.1:8800`.
+- Tokens do not expire; revoke one with `cfe auth logout` or from your account page.
+
 ## Tips
 
 1. **Template Organization**: The components create a `templates/components/` directory. You can extend this pattern for your own reusable components.
