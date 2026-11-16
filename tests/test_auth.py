@@ -289,6 +289,14 @@ def test_status_401(monkeypatch):
     assert "revoked" in result.output
 
 
+def test_status_426_asks_for_update(monkeypatch):
+    auth.store_token(HOST, TOKEN, USER)
+    serve(monkeypatch, {"GET me/": [reply(426, {"detail": "upgrade"})]})
+    result = runner.invoke(app, ["whoami"])
+    assert result.exit_code == 1
+    assert "cfe update" in result.output
+
+
 def test_status_not_logged_in(monkeypatch):
     server = serve(monkeypatch, {})
     result = runner.invoke(app, ["auth", "status"])

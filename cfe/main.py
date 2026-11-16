@@ -1,6 +1,7 @@
 """CFE CLI - Build your Python apps faster with battle-tested components."""
 
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -8,7 +9,9 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from .auth import auth_app
+from . import __version__
+from . import update as updater
+from .auth import auth_app, login, logout, status_cmd
 from .components import get_component, list_components
 from .detectors.package_manager import detect_package_manager, install_packages
 from .detectors.project_type import detect_project
@@ -20,6 +23,26 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def _version_callback(value: bool):
+    if value:
+        typer.echo(f"cfe {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show the cfe version and exit.",
+    ),
+):
+    """Build your Python apps faster with battle-tested components, templates, and more."""
 
 
 @app.command()
@@ -179,6 +202,14 @@ stack_app = typer.Typer(
 app.add_typer(stack_app, name="stack")
 app.add_typer(auth_app, name="auth")
 
+# Top-level shortcuts for the most common auth commands.
+app.command("login")(login)
+app.command("logout")(logout)
+app.command("whoami")(status_cmd)
+
+app.command("update")(updater.update)
+app.command("upgrade", hidden=True)(updater.update)
+
 
 @stack_app.command("modules")
 def stack_modules():
@@ -224,7 +255,12 @@ def stack_modules():
 
 def main():
     """Entry point for the CLI."""
-    app()
+    argv = sys.argv[1:]
+    checker = updater.start_background_check(argv)
+    try:
+        app()
+    finally:
+        updater.finish(checker, argv)
 
 
 if __name__ == "__main__":

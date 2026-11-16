@@ -73,17 +73,34 @@ cfe init
 Sign in to your CodingForEntrepreneurs account (like `gh auth login`). No password is handled by the CLI: it shows a one-time code, you approve it in the browser, and a token is saved locally.
 
 ```bash
-cfe auth login            # opens your browser; --no-browser prints the URL instead
-cfe auth status           # who you are, token prefix, subscription and course access
+cfe login                 # opens your browser; --no-browser prints the URL instead
+cfe whoami                # who you are, token prefix, subscription and course access
 cfe auth token            # print the token for scripts: curl -H "Authorization: Bearer $(cfe auth token)" ...
-cfe auth logout           # revoke the token on the server and delete the local copy
+cfe logout                # revoke the token on the server and delete the local copy
 ```
+
+`cfe login`, `cfe whoami`, and `cfe logout` are shortcuts for `cfe auth login`, `cfe auth status`, and `cfe auth logout`.
 
 Options and environment:
 - `--host` / `CFE_HOST`: server URL (default `https://www.codingforentrepreneurs.com`).
 - `CFE_TOKEN`: use this token instead of the stored one (CI, containers).
 - `CFE_CONFIG_DIR`: where `hosts.json` lives (default `~/.config/cfe`, or `$XDG_CONFIG_HOME/cfe`). The directory is `0700` and the file is `0600`.
-- `cfe auth login --force` re-authenticates without asking if you are already logged in.
+- `cfe login --force` re-authenticates without asking if you are already logged in.
+
+### `cfe update`
+
+Update cfe to the latest version. `cfe upgrade` does the same thing.
+
+```bash
+cfe update                # detects how cfe was installed and upgrades it
+cfe update --check        # only report whether a newer version exists
+cfe update --dry-run      # print the upgrade command instead of running it
+cfe --version
+```
+
+It picks the upgrade command from how cfe was installed: `uv tool upgrade cfe`, `pipx upgrade cfe`, or a pip upgrade into the current environment (using `uv pip` when uv is available). Under `uvx`, it tells you to run `uvx cfe@latest` instead.
+
+cfe also checks for a newer version once a day in the background and prints a one-line notice on stderr after a command finishes. The check never blocks a command or fails it. It is skipped when `CI` is set or stderr is not a terminal; set `CFE_NO_UPDATE_CHECK=1` to turn it off. The result is cached in `~/.cache/cfe/update-check.json` (`$XDG_CACHE_HOME/cfe`, or `CFE_CACHE_DIR`).
 
 ## Available Components
 
