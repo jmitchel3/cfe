@@ -1,4 +1,4 @@
-"""Tests for `cfe auth`. No network: urllib.request.urlopen is faked."""
+"""Tests for `cfe auth`. No network: auth._send is faked."""
 
 import io
 import json
@@ -14,7 +14,7 @@ from cfe import auth
 from cfe.main import app
 
 runner = CliRunner()
-HOST = "https://www.codingforentrepreneurs.com"
+HOST = "https://codingforentrepreneurs.com"
 TOKEN = "cfe_abcdefghijklmnopqrstuvwxyz0123456789"
 USER = {"id": 42, "email": "you@example.com", "name": "You"}
 DEVICE = {
@@ -96,7 +96,7 @@ opened: list = []
 
 def serve(monkeypatch, routes):
     server = Server(routes)
-    monkeypatch.setattr(auth.urllib.request, "urlopen", server)
+    monkeypatch.setattr(auth, "_send", server)
     return server
 
 
@@ -214,7 +214,7 @@ def test_login_connection_error(monkeypatch):
     def boom(req, timeout=None):
         raise urllib.error.URLError("refused")
 
-    monkeypatch.setattr(auth.urllib.request, "urlopen", boom)
+    monkeypatch.setattr(auth, "_send", boom)
     result = runner.invoke(app, ["auth", "login", "--no-browser"])
     assert result.exit_code == 1
     assert "Could not reach" in result.output
@@ -340,7 +340,7 @@ def test_logout_network_error_still_removes(monkeypatch, env):
     def boom(req, timeout=None):
         raise urllib.error.URLError("down")
 
-    monkeypatch.setattr(auth.urllib.request, "urlopen", boom)
+    monkeypatch.setattr(auth, "_send", boom)
     result = runner.invoke(app, ["auth", "logout"])
     assert result.exit_code == 0
     assert "Warning" in result.output
@@ -367,3 +367,87 @@ def test_config_dir_xdg(monkeypatch, tmp_path):
     monkeypatch.delenv("CFE_CONFIG_DIR")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     assert auth.hosts_file() == tmp_path / "xdg" / "cfe" / "hosts.json"
+
+
+# -------------------------------------------------------------- redirects
+
+
+def redirect(status, location):
+    def make(req):
+        msg = Message()
+        msg["Location"] = location
+        return urllib.error.HTTPError(req.full_url, status, "moved", msg, io.BytesIO(b""))
+
+    return make
+
+
+class RedirectServer:
+    def __init__(self, routes):
+        self.routes = routes
+        self.calls = []
+
+    def __call__(self, req, timeout=None):
+        self.calls.append(
+            (req.get_method(), req.full_url, req.data, req.get_header("Authorization"))
+        )
+        result = self.routes[req.full_url](req)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+def test_redirects_keep_post_method_and_body(monkeypatch):
+    www = "https://www.codingforentrepreneurs.com"
+    server = RedirectServer(
+        {
+            f"{www}/api/cli/token/": redirect(301, f"{HOST}/api/cli/token/"),
+            f"{HOST}/api/cli/token/": redirect(308, "/api/cli/token"),
+            f"{HOST}/api/cli/token": reply(400, {"error": "invalid_grant"}),
+        }
+    )
+    monkeypatch.setattr(auth, "_send", server)
+    status, body, _ = auth.api_request("POST", www, "token", {"device_code": "x"})
+    assert (status, body["error"]) == (400, "invalid_grant")
+    assert [c[0] for c in server.calls] == ["POST", "POST", "POST"]
+    assert all(json.loads(c[2]) == {"device_code": "x"} for c in server.calls)
+
+
+def test_redirect_keeps_token_on_same_site(monkeypatch):
+    www = "https://www.codingforentrepreneurs.com"
+    server = RedirectServer(
+        {
+            f"{www}/api/cli/me/": redirect(301, f"{HOST}/api/cli/me/"),
+            f"{HOST}/api/cli/me/": reply(200, USER),
+        }
+    )
+    monkeypatch.setattr(auth, "_send", server)
+    status, _, _ = auth.api_request("GET", www, "me", token=TOKEN)
+    assert status == 200
+    assert server.calls[1][3] == f"Bearer {TOKEN}"
+
+
+def test_redirect_drops_token_for_other_site(monkeypatch):
+    server = RedirectServer(
+        {
+            f"{HOST}/api/cli/me/": redirect(302, "https://evil.example/api/cli/me/"),
+            "https://evil.example/api/cli/me/": reply(200, USER),
+        }
+    )
+    monkeypatch.setattr(auth, "_send", server)
+    auth.api_request("GET", HOST, "me", token=TOKEN)
+    assert server.calls[1][3] is None
+
+
+def test_redirect_refuses_https_downgrade(monkeypatch):
+    server = RedirectServer({f"{HOST}/api/cli/me/": redirect(301, "http://x.example/")})
+    monkeypatch.setattr(auth, "_send", server)
+    with pytest.raises(auth.ApiError, match="insecure redirect"):
+        auth.api_request("GET", HOST, "me", token=TOKEN)
+
+
+def test_redirect_loop_stops(monkeypatch):
+    server = RedirectServer({f"{HOST}/api/cli/me/": redirect(302, f"{HOST}/api/cli/me/")})
+    monkeypatch.setattr(auth, "_send", server)
+    with pytest.raises(auth.ApiError, match="Too many redirects"):
+        auth.api_request("GET", HOST, "me")
+    assert len(server.calls) == auth.MAX_REDIRECTS + 1
