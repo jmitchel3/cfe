@@ -62,9 +62,11 @@ class FakeApi:
         return self
 
     def __call__(self, method, host, path, payload=None, token=None, headers=None, raw=False):
-        bare = path.split("?", 1)[0].removeprefix("/api/")
+        bare = path.split("?", 1)[0].removeprefix("/api/").lstrip("/")
         self.calls.append(
             {
+                "host": host,
+                "full_path": path,
                 "method": method,
                 "path": path,
                 "bare": bare,
@@ -90,6 +92,8 @@ def logged_in(monkeypatch, tmp_path):
     monkeypatch.setenv("CFE_TOKEN", "cfe_testtoken")
     monkeypatch.delenv("CFE_TEAM", raising=False)
     monkeypatch.delenv("CFE_HOST", raising=False)
+    for env in api.SERVICE_BASE_URL_ENV.values():
+        monkeypatch.delenv(env, raising=False)
 
 
 @pytest.fixture(autouse=True)
@@ -164,6 +168,60 @@ def test_no_team_omits_team_key(fake):
     fake.on("POST", "uptime/monitors/", (201, {"monitor": monitor(), "verified": True}))
     assert run("uptime", "add", "https://example.com").exit_code == 0
     assert "team" not in fake.called("POST", "uptime/monitors/")[0]["payload"]
+
+
+# ------------------------------------------------------------------ base URLs
+
+
+def test_uptime_base_url_routes_uptime_only(fake, monkeypatch):
+    monkeypatch.setenv("UPTIME_BASE_URL", "http://127.0.0.1:8800/api/uptime/")
+    fake.on("GET", "teams/", TEAMS)
+    fake.on("GET", "uptime/monitors/", {"monitors": []})
+    assert run("uptime", "ls", "--team", "acme").exit_code == 0
+    teams_call, list_call = fake.calls
+    assert teams_call["host"] == api.normalize_host(None)
+    assert list_call["host"] == "http://127.0.0.1:8800"
+    assert list_call["full_path"] == "/api/uptime/monitors/"
+
+
+def test_base_url_custom_prefix(fake, monkeypatch):
+    monkeypatch.setenv("MAILCHECK_BASE_URL", "https://staging.example.com/v2/mail")
+    monkeypatch.setenv("DOMAINS_BASE_URL", "staging.example.com/api/domains")
+    fake.on("GET", "v2/mail/checks/", {"checks": []})
+    fake.on("GET", "domains/", {"domains": []})
+    assert run("mail", "ls").exit_code == 0
+    assert run("domains", "ls").exit_code == 0
+    mail_call, domains_call = fake.calls
+    assert (mail_call["host"], mail_call["full_path"]) == (
+        "https://staging.example.com",
+        "/v2/mail/checks/?limit=25",
+    )
+    assert domains_call["host"] == "https://staging.example.com"
+
+
+def test_base_url_uses_that_hosts_token_only(fake, monkeypatch):
+    from cfe import auth
+
+    monkeypatch.delenv("CFE_TOKEN")
+    auth.store_token(api.normalize_host(None), "cfe_prod", {"email": "a@b.c"})
+    monkeypatch.setenv("UPTIME_BASE_URL", "http://127.0.0.1:8800/api/uptime")
+    fake.on("GET", "uptime/monitors/", {"monitors": []})
+    result = run("uptime", "ls")
+    assert result.exit_code == 1
+    assert "Not logged in to http://127.0.0.1:8800 (from UPTIME_BASE_URL)" in result.output
+    assert "cfe login --host http://127.0.0.1:8800" in " ".join(result.output.split())
+    assert fake.calls == []  # the prod token never went to the other host
+
+    auth.store_token("http://127.0.0.1:8800", "cfe_local", {"email": "a@b.c"})
+    assert run("uptime", "ls").exit_code == 0
+    assert fake.calls[0]["token"] == "cfe_local"
+
+
+def test_bad_base_url(fake, monkeypatch):
+    monkeypatch.setenv("UPTIME_BASE_URL", "ftp://example.com/uptime")
+    result = run("uptime", "ls")
+    assert result.exit_code == 2
+    assert "UPTIME_BASE_URL must be an http(s) URL" in result.output
 
 
 # ------------------------------------------------------------------ uptime

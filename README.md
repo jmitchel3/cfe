@@ -98,7 +98,7 @@ cfe mail check                                     # send your campaign to the p
 cfe domains add example.com                        # prints the TXT record to verify it
 ```
 
-Every command takes `--json` and `--team`; exit codes are meaningful (`status` exits 1 when a monitor is down, `mail check` exits 1 when a check fails, `--timeout` exits 124).
+Point a service elsewhere (local dev, staging) with `UPTIME_BASE_URL`, `MAILCHECK_BASE_URL`, `DOMAINS_BASE_URL` or `TEAMS_BASE_URL`. Every command takes `--json` and `--team`; exit codes are meaningful (`status` exits 1 when a monitor is down, `mail check` exits 1 when a check fails, `--timeout` exits 124).
 
 ### `cfe update`
 

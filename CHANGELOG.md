@@ -15,6 +15,7 @@
 
 ### Added
 
+- Per-service API base URLs: `UPTIME_BASE_URL`, `MAILCHECK_BASE_URL`, `DOMAINS_BASE_URL`, `TEAMS_BASE_URL` replace `<host>/api/<service>` for that service (local dev, staging). Tokens are looked up per origin, so a stored token is never sent to a different host. See [docs/services.md](docs/services.md#endpoints).
 - `cfe uptime`: add, verify (`--wait`), DNS setup with provider steps and Domain Connect links, show, checks (with `--csv` export), history, site scan, pause, resume, rename and rm for CFE uptime monitors. Monitors can be named by id, hostname or URL.
 - `cfe uptime status`, `wait` and `watch`: monitor state as a signal for scripts and agents. `watch` streams one JSON line per change (`down`, `up`, `verified`, `paused`, `resumed`, `added`, `removed`) and can run `--exec` per event or `--exit-on` the first one.
 - `cfe mail`: pre-send email checks. `check` gets a one-time `check+<token>@cfe.run` address, optionally runs your `--send` command, waits for the email and prints the report; `paste` checks a raw message without sending it; plus `report`, `ls`, `raw`, `rm` and saved addresses (`cfe mail address add|ls|wait|reports|rename|rm`). Exit code follows `--fail-on`.
