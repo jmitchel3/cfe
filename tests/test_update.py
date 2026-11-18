@@ -195,7 +195,7 @@ def test_detect_uv_tool(monkeypatch, tmp_path):
     monkeypatch.setattr(update.sys, "prefix", str(tools / "cfe"))
     monkeypatch.setattr(update, "_uv_dir", lambda kind: str(tools) if kind == "tool" else None)
     monkeypatch.setattr(update.shutil, "which", lambda name: f"/bin/{name}")
-    assert update.detect_install() == ("uv tool", ["/bin/uv", "tool", "upgrade", "cfe"])
+    assert update.detect_install() == ("uv tool", ["/bin/uv", "tool", "upgrade", "--refresh-package", "cfe", "cfe"])
 
 
 def test_detect_uvx(monkeypatch, tmp_path):
@@ -220,7 +220,7 @@ def test_detect_plain_venv_with_uv(monkeypatch, tmp_path):
     monkeypatch.setattr(update.shutil, "which", lambda name: "/bin/uv" if name == "uv" else None)
     method, cmd = update.detect_install()
     assert method == "pip"
-    assert cmd[:3] == ["/bin/uv", "pip", "install"] and cmd[-2:] == ["--upgrade", "cfe"]
+    assert cmd[:3] == ["/bin/uv", "pip", "install"] and "--refresh-package" in cmd and cmd[-1] == "cfe"
 
 
 def test_detect_plain_venv_without_uv(monkeypatch, tmp_path):

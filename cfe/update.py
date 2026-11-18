@@ -245,7 +245,7 @@ def detect_install() -> tuple[str, list[str] | None]:
     if _editable_install():
         return "source", None
     if _is_under(prefix, _uv_dir("tool")) or ("uv" in parts and "tools" in parts):
-        return "uv tool", [uv or "uv", "tool", "upgrade", PACKAGE]
+        return "uv tool", [uv or "uv", "tool", "upgrade", "--refresh-package", PACKAGE, PACKAGE]
     if _is_under(prefix, _uv_dir("cache")) or any(
         p.startswith(("archive-v", "builds-v")) for p in parts
     ):
@@ -253,7 +253,17 @@ def detect_install() -> tuple[str, list[str] | None]:
     if "pipx" in parts:
         return "pipx", [shutil.which("pipx") or "pipx", "upgrade", PACKAGE]
     if uv:
-        return "pip", [uv, "pip", "install", "--python", sys.executable, "--upgrade", PACKAGE]
+        return "pip", [
+            uv,
+            "pip",
+            "install",
+            "--python",
+            sys.executable,
+            "--upgrade",
+            "--refresh-package",
+            PACKAGE,
+            PACKAGE,
+        ]
     return "pip", [sys.executable, "-m", "pip", "install", "--upgrade", PACKAGE]
 
 
