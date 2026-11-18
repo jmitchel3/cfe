@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- `cfe update` passes `--refresh-package cfe` to uv so a cached package index cannot install an older version right after a release.
+
 ## 0.0.23 (2026-11-18)
 
 ### Fixed
