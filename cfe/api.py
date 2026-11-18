@@ -13,6 +13,7 @@ Exit codes used across the service commands:
 """
 
 import json
+import os
 import re
 import sys
 import time
@@ -21,12 +22,19 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import typer
 from rich.console import Console
 
-from .auth import ApiError, HostOption, http_request, normalize_host, resolve_token
+from .auth import (
+    DEFAULT_HOST,
+    ApiError,
+    HostOption,
+    http_request,
+    normalize_host,
+    resolve_token,
+)
 
 console = Console()
 err_console = Console(stderr=True)
@@ -69,16 +77,65 @@ def emit_line(data: Any) -> None:
     sys.stdout.flush()
 
 
+# ------------------------------------------------------------------ endpoints
+
+# Each service can point somewhere other than `<host>/api/<service>/`, e.g. a
+# local dev server or staging. The value replaces that whole prefix:
+# UPTIME_BASE_URL=http://127.0.0.1:8800/api/uptime -> .../api/uptime/monitors/
+SERVICE_BASE_URL_ENV = {
+    "uptime": "UPTIME_BASE_URL",
+    "mail": "MAILCHECK_BASE_URL",
+    "domains": "DOMAINS_BASE_URL",
+    "teams": "TEAMS_BASE_URL",
+}
+
+
+def endpoint(host: str, path: str) -> tuple[str, str, str | None]:
+    """(origin, request path, env var used or None) for an API path like `uptime/monitors/`."""
+    path = path.lstrip("/")
+    service, _, rest = path.partition("/")
+    env = SERVICE_BASE_URL_ENV.get(service)
+    base = (os.environ.get(env) or "").strip() if env else ""
+    if not base:
+        return host, f"/api/{path}", None
+    if "://" not in base:
+        base = "https://" + base
+    parts = urlsplit(base)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        raise fail(f"{env} must be an http(s) URL, got {base!r}.", code=2)
+    origin = f"{parts.scheme}://{parts.netloc}"
+    return origin, f"{parts.path.rstrip('/')}/{rest}", env
+
+
+def login_hint(origin: str) -> str:
+    if origin == normalize_host(DEFAULT_HOST):
+        return "cfe login"
+    return f"cfe login --host {origin}"
+
+
 # ------------------------------------------------------------------ session
 
 
 @dataclass
 class Session:
     host: str
-    token: str
     team_ref: str | None = None
     _team: Any = field(default=None, init=False)
     _team_resolved: bool = field(default=False, init=False)
+    _tokens: dict[str, str] = field(default_factory=dict, init=False)
+
+    def token_for(self, origin: str, env: str | None = None) -> str:
+        """The token for `origin`: CFE_TOKEN, else the one stored by `cfe login --host`.
+
+        A token stored for one host is never sent to another.
+        """
+        if origin not in self._tokens:
+            token = resolve_token(origin)
+            if not token:
+                via = f" (from {env})" if env else ""
+                raise fail(f"Not logged in to {origin}{via}. Run `{login_hint(origin)}`.")
+            self._tokens[origin] = token
+        return self._tokens[origin]
 
     # -- team scope
 
@@ -124,7 +181,8 @@ class Session:
         raw: bool = False,
         scoped: bool = True,
     ) -> Any:
-        url = f"/api/{path.lstrip('/')}"
+        origin, url, env = endpoint(self.host, path)
+        token = self.token_for(origin, env)
         query = {k: v for k, v in (params or {}).items() if v not in (None, "")}
         if query:
             url += "?" + urlencode(query)
@@ -133,7 +191,7 @@ class Session:
             headers["X-Team-Id"] = self.team_uid
         try:
             status, body, resp_headers = http_request(
-                method, self.host, url, payload, self.token, headers=headers, raw=raw
+                method, origin, url, payload, token, headers=headers, raw=raw
             )
         except ApiError as exc:
             raise fail(str(exc))
@@ -176,12 +234,16 @@ def error_detail(body: Any) -> str | None:
     return None
 
 
-def http_error(status: int, body: Any, headers: dict[str, str]) -> HttpError:
+def http_error(
+    status: int, body: Any, headers: dict[str, str], origin: str = DEFAULT_HOST
+) -> HttpError:
     detail = error_detail(body)
     if status == 401 or (
         status == 403 and detail == "Authentication credentials were not provided."
     ):
-        message = "Your login is missing, invalid or revoked. Run `cfe login`."
+        message = (
+            f"Your login for {origin} is missing, invalid or revoked. Run `{login_hint(origin)}`."
+        )
     elif status == 429:
         wait = headers.get("retry-after") or (
             body.get("retry_after") if isinstance(body, dict) else None
@@ -196,11 +258,8 @@ def http_error(status: int, body: Any, headers: dict[str, str]) -> HttpError:
 
 
 def session(host: str | None, team: str | None = None) -> Session:
-    host = normalize_host(host)
-    token = resolve_token(host)
-    if not token:
-        raise fail(f"Not logged in to {host}. Run `cfe login`.")
-    return Session(host=host, token=token, team_ref=team)
+    """A session for `--host` / CFE_HOST. Tokens are looked up per request origin."""
+    return Session(host=normalize_host(host), team_ref=team)
 
 
 # ------------------------------------------------------------------ polling

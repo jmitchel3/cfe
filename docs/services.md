@@ -4,6 +4,23 @@
 
 Every command takes `--json` for scripts and agents. Progress lines go to stderr, so stdout stays parseable.
 
+## Endpoints
+
+By default every service talks to `<host>/api/<service>/`, where host is `--host` / `CFE_HOST` (default `https://codingforentrepreneurs.com`). Each service can be pointed somewhere else, for example a local dev server or staging:
+
+| Env var | Replaces | Example |
+| --- | --- | --- |
+| `UPTIME_BASE_URL` | `<host>/api/uptime` | `http://127.0.0.1:8800/api/uptime` |
+| `MAILCHECK_BASE_URL` | `<host>/api/mail` | `https://staging.example.com/api/mail` |
+| `DOMAINS_BASE_URL` | `<host>/api/domains` | `http://127.0.0.1:8800/api/domains` |
+| `TEAMS_BASE_URL` | `<host>/api/teams` (used by `--team` names and `cfe teams`) | `http://127.0.0.1:8800/api/teams` |
+
+The value is the full prefix; request paths are appended to it (`UPTIME_BASE_URL=http://127.0.0.1:8800/api/uptime` sends `GET http://127.0.0.1:8800/api/uptime/monitors/`). A missing scheme means `https://`.
+
+The target must speak the CFE site API (Django), not a Worker directly: the Workers use a service token and owner refs that only the site holds.
+
+Tokens are per host. A request to an overridden URL uses the token stored by `cfe login --host <that origin>`, or `CFE_TOKEN` if set; a token stored for another host is never sent. Without one, the command stops with the `cfe login --host ...` to run.
+
 ## Teams
 
 Items live in Personal or a team. Without `--team`, lists show Personal and new items go to Personal.
