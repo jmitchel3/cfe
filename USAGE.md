@@ -147,6 +147,20 @@ Notes:
 - Set `CFE_TOKEN` to override the stored token (useful in CI). Set `CFE_HOST` or pass `--host` to talk to another server, for example `--host http://127.0.0.1:8800`.
 - Tokens do not expire; revoke one with `cfe logout` or from your account page.
 
+## Uptime, mail checks and domains
+
+```bash
+cfe uptime add https://example.com        # then follow the printed DNS or file proof
+cfe uptime verify example.com --wait
+cfe uptime status                         # exit 1 if any monitor is down
+cfe uptime watch --exec 'notify.sh'       # JSON event per change on stdin
+cfe mail check                            # one-time address, waits for your email, prints the report
+cfe mail paste message.eml                # check a saved message without sending it
+cfe domains add example.com && cfe domains verify example.com --wait
+```
+
+See [docs/services.md](docs/services.md) for every command, events and exit codes.
+
 ## Updating
 
 ```bash

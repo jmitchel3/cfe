@@ -178,16 +178,32 @@ def api_request(
     payload: dict | None = None,
     token: str | None = None,
 ) -> tuple[int, Any, dict[str, str]]:
-    """JSON in, JSON out. Returns (status, body, headers); HTTP errors do not raise.
+    """JSON in, JSON out for `/api/cli/`. Returns (status, body, headers); HTTP errors do not raise."""
+    return http_request(method, host, f"/api/cli/{path.strip('/')}/", payload, token)
+
+
+def http_request(
+    method: str,
+    host: str,
+    path: str,
+    payload: dict | None = None,
+    token: str | None = None,
+    headers: dict[str, str] | None = None,
+    raw: bool = False,
+) -> tuple[int, Any, dict[str, str]]:
+    """One request to `<host><path>`. Returns (status, body, headers); HTTP errors do not raise.
+
+    With `raw`, a 2xx body is returned as bytes instead of parsed JSON.
 
     Redirects are followed with the method and body kept (urllib would turn a
     redirected POST into a GET). The token is only sent to the same site
     (www. and the bare domain count as one).
     """
-    url = f"{host}/api/cli/{path.strip('/')}/"
+    url = f"{host}{path}"
     headers = {
         "User-Agent": f"cfe-cli/{__version__}",
         "Accept": "application/json",
+        **(headers or {}),
     }
     data = None
     if payload is not None:
@@ -200,11 +216,11 @@ def api_request(
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
             with _send(req, TIMEOUT) as resp:
-                status, raw, resp_headers = resp.status, resp.read(), resp.headers
+                status, body_bytes, resp_headers = resp.status, resp.read(), resp.headers
         except urllib.error.HTTPError as exc:
             status, resp_headers = exc.code, exc.headers
             # A redirect body is never needed, and some servers leave it open.
-            raw = b"" if status in REDIRECT_CODES else _read_error_body(exc)
+            body_bytes = b"" if status in REDIRECT_CODES else _read_error_body(exc)
             exc.close()
         except (urllib.error.URLError, OSError, TimeoutError) as exc:
             reason = getattr(exc, "reason", exc)
@@ -216,6 +232,7 @@ def api_request(
         target = _follow(url, location)
         if _site(target) != _site(url):
             headers.pop("Authorization", None)
+            headers.pop("X-Team-Id", None)
         if status == 303:
             method, data = "GET", None
             headers.pop("Content-Type", None)
@@ -223,12 +240,14 @@ def api_request(
     else:
         raise ApiError(f"Too many redirects from {host}.")
 
-    try:
-        body = json.loads(raw) if raw else None
-    except ValueError:
-        body = None
     if status == 426:
         raise ApiError(f"cfe {__version__} is too old for this server. Run: cfe update")
+    if raw and 200 <= status < 300:
+        return status, body_bytes, resp_headers
+    try:
+        body = json.loads(body_bytes) if body_bytes else None
+    except ValueError:
+        body = None
     return status, body, resp_headers
 
 

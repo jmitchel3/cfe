@@ -87,6 +87,19 @@ Options and environment:
 - `CFE_CONFIG_DIR`: where `hosts.json` lives (default `~/.config/cfe`, or `$XDG_CONFIG_HOME/cfe`). The directory is `0700` and the file is `0600`.
 - `cfe login --force` re-authenticates without asking if you are already logged in.
 
+### `cfe uptime`, `cfe mail`, `cfe domains`
+
+The CFE member tools, after `cfe login`. Full guide: [docs/services.md](docs/services.md).
+
+```bash
+cfe uptime add https://example.com && cfe uptime verify example.com --wait
+cfe uptime watch --on down --exec './respond.sh'   # one JSON line per change; a trigger for agents
+cfe mail check                                     # send your campaign to the printed address, get the report back
+cfe domains add example.com                        # prints the TXT record to verify it
+```
+
+Every command takes `--json` and `--team`; exit codes are meaningful (`status` exits 1 when a monitor is down, `mail check` exits 1 when a check fails, `--timeout` exits 124).
+
 ### `cfe update`
 
 Update cfe to the latest version. `cfe upgrade` does the same thing.
