@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
 from datetime import UTC, datetime
@@ -22,9 +23,11 @@ from rich.console import Console
 
 from . import __version__
 
-DEFAULT_HOST = "https://www.codingforentrepreneurs.com"
+DEFAULT_HOST = "https://codingforentrepreneurs.com"
 GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 TIMEOUT = 15
+MAX_REDIRECTS = 5
+REDIRECT_CODES = {301, 302, 303, 307, 308}
 TERMINAL_ERRORS = {
     "expired_token": "The code expired before it was approved. Run `cfe login` again.",
     "access_denied": "Authorization was denied in the browser.",
@@ -134,6 +137,40 @@ def resolve_token(host: str) -> str | None:
 # ------------------------------------------------------------------- http
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Surface 3xx as HTTPError so api_request can follow them itself."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def _send(req: urllib.request.Request, timeout: float):
+    return _OPENER.open(req, timeout=timeout)
+
+
+def _read_error_body(exc: urllib.error.HTTPError) -> bytes:
+    try:
+        return exc.read()
+    except (OSError, TimeoutError):
+        return b""
+
+
+def _site(url: str) -> str:
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    return host.removeprefix("www.")
+
+
+def _follow(url: str, location: str) -> str:
+    target = urllib.parse.urljoin(url, location)
+    old, new = urllib.parse.urlsplit(url).scheme, urllib.parse.urlsplit(target).scheme
+    if new not in ("http", "https") or (old == "https" and new != "https"):
+        raise ApiError(f"Refusing to follow an insecure redirect to {target}.")
+    return target
+
+
 def api_request(
     method: str,
     host: str,
@@ -141,7 +178,12 @@ def api_request(
     payload: dict | None = None,
     token: str | None = None,
 ) -> tuple[int, Any, dict[str, str]]:
-    """JSON in, JSON out. Returns (status, body, headers); HTTP errors do not raise."""
+    """JSON in, JSON out. Returns (status, body, headers); HTTP errors do not raise.
+
+    Redirects are followed with the method and body kept (urllib would turn a
+    redirected POST into a GET). The token is only sent to the same site
+    (www. and the bare domain count as one).
+    """
     url = f"{host}/api/cli/{path.strip('/')}/"
     headers = {
         "User-Agent": f"cfe-cli/{__version__}",
@@ -153,22 +195,41 @@ def api_request(
         headers["Content-Type"] = "application/json"
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            status, raw, resp_headers = resp.status, resp.read(), resp.headers
-    except urllib.error.HTTPError as exc:
-        status, raw, resp_headers = exc.code, exc.read(), exc.headers
-    except (urllib.error.URLError, OSError, TimeoutError) as exc:
-        reason = getattr(exc, "reason", exc)
-        raise ApiError(f"Could not reach {host} ({reason}).") from None
+
+    for _ in range(MAX_REDIRECTS + 1):
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with _send(req, TIMEOUT) as resp:
+                status, raw, resp_headers = resp.status, resp.read(), resp.headers
+        except urllib.error.HTTPError as exc:
+            status, resp_headers = exc.code, exc.headers
+            # A redirect body is never needed, and some servers leave it open.
+            raw = b"" if status in REDIRECT_CODES else _read_error_body(exc)
+            exc.close()
+        except (urllib.error.URLError, OSError, TimeoutError) as exc:
+            reason = getattr(exc, "reason", exc)
+            raise ApiError(f"Could not reach {host} ({reason}).") from None
+        resp_headers = {k.lower(): v for k, v in dict(resp_headers or {}).items()}
+        location = resp_headers.get("location")
+        if status not in REDIRECT_CODES or not location:
+            break
+        target = _follow(url, location)
+        if _site(target) != _site(url):
+            headers.pop("Authorization", None)
+        if status == 303:
+            method, data = "GET", None
+            headers.pop("Content-Type", None)
+        url = target
+    else:
+        raise ApiError(f"Too many redirects from {host}.")
+
     try:
         body = json.loads(raw) if raw else None
     except ValueError:
         body = None
     if status == 426:
         raise ApiError(f"cfe {__version__} is too old for this server. Run: cfe update")
-    return status, body, {k.lower(): v for k, v in dict(resp_headers or {}).items()}
+    return status, body, resp_headers
 
 
 # ------------------------------------------------------------------ login

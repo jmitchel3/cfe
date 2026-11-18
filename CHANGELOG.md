@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.0.23 (2026-11-18)
+
+### Fixed
+
+- `cfe login` and every other API call follow redirects with the method and body kept. Before, a redirect from `www.` to the bare domain turned the login POST into a GET and the server answered 405. The token is only forwarded to the same site, and https-to-http redirects are refused.
+- The default host is now `https://codingforentrepreneurs.com`.
+
 ### Added
 
 - `cfe update` (alias `cfe upgrade`): upgrades cfe using the matching command for how it was installed (uv tool, pipx, pip or uv pip; uvx and editable installs get instructions instead). `--check` and `--dry-run` supported.

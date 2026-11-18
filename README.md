@@ -82,7 +82,7 @@ cfe logout                # revoke the token on the server and delete the local 
 `cfe login`, `cfe whoami`, and `cfe logout` are shortcuts for `cfe auth login`, `cfe auth status`, and `cfe auth logout`.
 
 Options and environment:
-- `--host` / `CFE_HOST`: server URL (default `https://www.codingforentrepreneurs.com`).
+- `--host` / `CFE_HOST`: server URL (default `https://codingforentrepreneurs.com`).
 - `CFE_TOKEN`: use this token instead of the stored one (CI, containers).
 - `CFE_CONFIG_DIR`: where `hosts.json` lives (default `~/.config/cfe`, or `$XDG_CONFIG_HOME/cfe`). The directory is `0700` and the file is `0600`.
 - `cfe login --force` re-authenticates without asking if you are already logged in.

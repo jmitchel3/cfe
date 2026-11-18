@@ -91,7 +91,7 @@ def test_fetch_prefers_site_endpoint(monkeypatch):
     monkeypatch.setattr(update.urllib.request, "urlopen", fake_urlopen(routes, calls))
     info = update.fetch_latest()
     assert info == {"latest": NEWER, "min_supported": "0.0.1", "message": "hi"}
-    assert calls == ["https://www.codingforentrepreneurs.com/api/cli/version/"]
+    assert calls == ["https://codingforentrepreneurs.com/api/cli/version/"]
 
 
 def test_fetch_falls_back_to_pypi(monkeypatch):
