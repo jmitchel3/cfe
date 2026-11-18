@@ -15,6 +15,9 @@ from .auth import auth_app, login, logout, status_cmd
 from .components import get_component, list_components
 from .detectors.package_manager import detect_package_manager, install_packages
 from .detectors.project_type import detect_project
+from .domains import domains_app, teams_cmd
+from .mailcheck import mail_app
+from .uptime import uptime_app
 
 app = typer.Typer(
     name="cfe",
@@ -201,6 +204,10 @@ stack_app = typer.Typer(
 )
 app.add_typer(stack_app, name="stack")
 app.add_typer(auth_app, name="auth")
+app.add_typer(uptime_app, name="uptime")
+app.add_typer(mail_app, name="mail")
+app.add_typer(domains_app, name="domains")
+app.command("teams")(teams_cmd)
 
 # Top-level shortcuts for the most common auth commands.
 app.command("login")(login)
